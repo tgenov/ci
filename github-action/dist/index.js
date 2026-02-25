@@ -2253,10 +2253,10 @@ function runMain() {
                     workspaceFolder,
                     configFile,
                     imageName: fullImageNameArray,
-                    platform,
+                    platform: platformTag ? undefined : platform,
                     additionalCacheFroms: cacheFrom,
                     userDataFolder,
-                    output: buildxOutput,
+                    output: platformTag ? undefined : buildxOutput,
                     noCache,
                     cacheTo,
                 };
