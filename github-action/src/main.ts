@@ -82,7 +82,12 @@ export async function runMain(): Promise<void> {
 				return;
 			}
 		}
-		const buildxOutput = platform && !platformTag ? 'type=oci,dest=/tmp/output.tar' : undefined;
+		let buildxOutput: string | undefined;
+		if (platform && !platformTag) {
+			buildxOutput = 'type=oci,dest=/tmp/output.tar';
+		} else if (platform && platformTag) {
+			buildxOutput = 'type=docker';
+		}
 
 		if (platformTag) {
 			core.saveState('platformTag', platformTag);
