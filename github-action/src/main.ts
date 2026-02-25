@@ -9,7 +9,7 @@ import {
 	DevContainerCliUpArgs,
 } from '../../common/src/dev-container-cli';
 
-import {isDockerBuildXInstalled, pushImage} from './docker';
+import {isDockerBuildXInstalled, pushImage, createManifest} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {populateDefaults} from '../../common/src/envvars';
 
@@ -26,6 +26,14 @@ export async function runMain(): Promise<void> {
 	try {
 		core.info('Starting...');
 		core.saveState('hasRunMain', 'true');
+
+		const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag'));
+		if (mergeTag) {
+			core.info('mergeTag is set - skipping build (manifest merge will run in post step)');
+			core.saveState('mergeTag', mergeTag);
+			return;
+		}
+
 		const buildXInstalled = await isDockerBuildXInstalled();
 		if (!buildXInstalled) {
 			core.warning(
@@ -47,6 +55,7 @@ export async function runMain(): Promise<void> {
 		const imageName = emptyStringAsUndefined(core.getInput('imageName'));
 		const imageTag = emptyStringAsUndefined(core.getInput('imageTag'));
 		const platform = emptyStringAsUndefined(core.getInput('platform'));
+		const platformTag = emptyStringAsUndefined(core.getInput('platformTag'));
 		const subFolder: string = core.getInput('subFolder');
 		const relativeConfigFile = emptyStringAsUndefined(
 			core.getInput('configFile'),
@@ -64,7 +73,7 @@ export async function runMain(): Promise<void> {
 		const userDataFolder: string = core.getInput('userDataFolder');
 		const mounts: string[] = core.getMultilineInput('mounts');
 
-		if (platform) {
+		if (platform && !platformTag) {
 			const skopeoInstalled = await isSkopeoInstalled();
 			if (!skopeoInstalled) {
 				core.warning(
@@ -73,7 +82,11 @@ export async function runMain(): Promise<void> {
 				return;
 			}
 		}
-		const buildxOutput = platform ? 'type=oci,dest=/tmp/output.tar' : undefined;
+		const buildxOutput = platform && !platformTag ? 'type=oci,dest=/tmp/output.tar' : undefined;
+
+		if (platformTag) {
+			core.saveState('platformTag', platformTag);
+		}
 
 		const log = (message: string): void => core.info(message);
 		const workspaceFolder = path.resolve(checkoutPath, subFolder);
@@ -84,23 +97,21 @@ export async function runMain(): Promise<void> {
 		const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
 		const fullImageNameArray: string[] = [];
 		for (const tag of imageTagArray) {
-			fullImageNameArray.push(`${imageName}:${tag}`);
+			if (platformTag) {
+				fullImageNameArray.push(`${imageName}:${tag}-${platformTag}`);
+			} else {
+				fullImageNameArray.push(`${imageName}:${tag}`);
+			}
 		}
 		if (imageName) {
 			if (fullImageNameArray.length === 1) {
 				if (!noCache && !cacheFrom.includes(fullImageNameArray[0])) {
-					// If the cacheFrom options don't include the fullImageName, add it here
-					// This ensures that when building a PR where the image specified in the action
-					// isn't included in devcontainer.json (or docker-compose.yml), the action still
-					// resolves a previous image for the tag as a layer cache (if pushed to a registry)
-
 					core.info(
 						`Adding --cache-from ${fullImageNameArray[0]} to build args`,
 					);
 					cacheFrom.splice(0, 0, fullImageNameArray[0]);
 				}
 			} else {
-				// Don't automatically add --cache-from if multiple image tags are specified
 				core.info(
 					'Not adding --cache-from automatically since multiple image tags were supplied',
 				);
@@ -217,18 +228,37 @@ export async function runPost(): Promise<void> {
 	const eventFilterForPush: string[] =
 		core.getMultilineInput('eventFilterForPush');
 
-	// default to 'never' if not set and no imageName
+	const mergeTag = emptyStringAsUndefined(core.getState('mergeTag'));
+	if (mergeTag) {
+		if (!imageName) {
+			core.setFailed('imageName is required for manifest merge');
+			return;
+		}
+		const imageTag =
+			emptyStringAsUndefined(core.getInput('imageTag')) ?? 'latest';
+		const imageTagArray = imageTag.split(/\s*,\s*/);
+		const platformTags = mergeTag.split(/\s*,\s*/);
+		for (const tag of imageTagArray) {
+			core.info(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
+			const success = await createManifest(imageName, tag, platformTags);
+			if (!success) {
+				return;
+			}
+		}
+		return;
+	}
+
+	const platformTag = emptyStringAsUndefined(core.getState('platformTag'));
+
 	if (pushOption === 'never' || (!pushOption && !imageName)) {
 		core.info(`Image push skipped because 'push' is set to '${pushOption}'`);
 		return;
 	}
 
-	// default to 'filter' if not set and imageName is set
 	if (pushOption === 'filter' || (!pushOption && imageName)) {
-		// https://docs.github.com/en/actions/reference/environment-variables#default-environment-variables
 		const ref = process.env.GITHUB_REF;
 		if (
-			refFilterForPush.length !== 0 && // empty filter allows all
+			refFilterForPush.length !== 0 &&
 			!refFilterForPush.some(s => s === ref)
 		) {
 			core.info(
@@ -238,7 +268,7 @@ export async function runPost(): Promise<void> {
 		}
 		const eventName = process.env.GITHUB_EVENT_NAME;
 		if (
-			eventFilterForPush.length !== 0 && // empty filter allows all
+			eventFilterForPush.length !== 0 &&
 			!eventFilterForPush.some(s => s === eventName)
 		) {
 			core.info(
@@ -256,14 +286,18 @@ export async function runPost(): Promise<void> {
 	const imageTagArray = imageTag.split(/\s*,\s*/);
 	if (!imageName) {
 		if (pushOption) {
-			// pushOption was set (and not to "never") - give an error that imageName is required
 			core.error('imageName is required to push images');
 		}
 		return;
 	}
 
 	const platform = emptyStringAsUndefined(core.getInput('platform'));
-	if (platform) {
+	if (platformTag) {
+		for (const tag of imageTagArray) {
+			core.info(`Pushing platform image '${imageName}:${tag}-${platformTag}'...`);
+			await pushImage(imageName, `${tag}-${platformTag}`);
+		}
+	} else if (platform) {
 		for (const tag of imageTagArray) {
 			core.info(`Copying multiplatform image '${imageName}:${tag}'...`);
 			const imageSource = `oci-archive:/tmp/output.tar:${tag}`;

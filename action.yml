@@ -66,6 +66,12 @@ inputs:
   cacheTo:
     required: false
     description: Specify the image to cache the built image to
+  platformTag:
+    required: false
+    description: 'Tag suffix for this platform build (e.g., "linux-amd64"). Used in matrix builds to push per-platform images that are later merged.'
+  mergeTag:
+    required: false
+    description: 'Comma-separated list of platform tags to merge into a multi-arch manifest (e.g., "linux-amd64,linux-arm64"). Used in the merge job after matrix builds complete.'
 outputs:
   runCmdOutput:
     description: The output of the command specified in the runCmd input

@@ -337,6 +337,25 @@ export async function pushImage(
 	}
 }
 
+export async function createManifest(
+	exec: ExecFunction,
+	imageName: string,
+	tag: string,
+	platformTags: string[],
+): Promise<void> {
+	const args = ['buildx', 'imagetools', 'create'];
+	args.push('-t', `${imageName}:${tag}`);
+	for (const platformTag of platformTags) {
+		args.push(`${imageName}:${tag}-${platformTag}`);
+	}
+
+	const {exitCode} = await exec('docker', args, {});
+
+	if (exitCode !== 0) {
+		throw new Error(`manifest creation failed with ${exitCode}`);
+	}
+}
+
 export interface DockerMount {
 	type: string;
 	source: string;

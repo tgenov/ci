@@ -77,3 +77,20 @@ export async function pushImage(
 		core.endGroup();
 	}
 }
+
+export async function createManifest(
+	imageName: string,
+	tag: string,
+	platformTags: string[],
+): Promise<boolean> {
+	core.startGroup(`📦 Creating multi-arch manifest for '${imageName}:${tag}'...`);
+	try {
+		await docker.createManifest(exec, imageName, tag, platformTags);
+		return true;
+	} catch (error) {
+		core.setFailed(error);
+		return false;
+	} finally {
+		core.endGroup();
+	}
+}
