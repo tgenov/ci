@@ -72,3 +72,101 @@ jobs:
       imageName: UserNameHere/ImageNameHere
       platform: linux/amd64,linux/arm64
 ```
+
+## Native Multi-Platform Builds (Matrix Strategy)
+
+Instead of using QEMU emulation on a single runner, you can use native runners in a matrix strategy. Each runner builds for its own architecture and pushes a platform-specific image. A final job then merges the per-platform images into a single multi-arch manifest.
+
+### Benefits
+
+- **Faster builds** -- no emulation overhead since each runner compiles natively.
+- **More reliable** -- native compilation avoids QEMU compatibility issues.
+- **Flexible runners** -- works with GitHub's hosted ARM runners (`ubuntu-24.04-arm`) or self-hosted ARM agents.
+
+### GitHub Actions Example
+
+```yaml
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            platformTag: linux-amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            platformTag: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/example/myimage
+          platform: ${{ matrix.platform }}
+          platformTag: ${{ matrix.platformTag }}
+          push: always
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/example/myimage
+          mergeTag: linux-amd64,linux-arm64
+```
+
+### Azure DevOps Pipelines Example
+
+```yaml
+stages:
+- stage: Build
+  jobs:
+  - job: BuildAmd64
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: DevcontainersCi@0
+      inputs:
+        imageName: myregistry.azurecr.io/devcontainer
+        platform: linux/amd64
+        platformTag: linux-amd64
+        push: always
+
+  - job: BuildArm64
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: DevcontainersCi@0
+      inputs:
+        imageName: myregistry.azurecr.io/devcontainer
+        platform: linux/arm64
+        platformTag: linux-arm64
+        push: always
+
+- stage: Manifest
+  dependsOn: Build
+  jobs:
+  - job: MergeManifest
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: DevcontainersCi@0
+      inputs:
+        imageName: myregistry.azurecr.io/devcontainer
+        mergeTag: linux-amd64,linux-arm64
+```

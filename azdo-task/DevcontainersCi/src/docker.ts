@@ -71,3 +71,18 @@ export async function pushImage(
 		return false;
 	}
 }
+
+export async function createManifest(
+	imageName: string,
+	tag: string,
+	platformTags: string[],
+): Promise<boolean> {
+	console.log(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
+	try {
+		await docker.createManifest(exec, imageName, tag, platformTags);
+		return true;
+	} catch (error) {
+		task.setResult(task.TaskResult.Failed, `${error}`);
+		return false;
+	}
+}

@@ -128,6 +128,18 @@
       "type": "multiLine",
       "label": "Specify the image to cache the built image to",
       "required": false
+    },
+    {
+      "name": "platformTag",
+      "type": "string",
+      "label": "Tag suffix for this platform build (e.g., 'linux-amd64'). Used in matrix builds to push per-platform images that are later merged.",
+      "required": false
+    },
+    {
+      "name": "mergeTag",
+      "type": "string",
+      "label": "Comma-separated list of platform tags to merge into a multi-arch manifest (e.g., 'linux-amd64,linux-arm64'). Used in the merge job after matrix builds complete.",
+      "required": false
     }
   ],
   "outputVariables": [{

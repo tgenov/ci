@@ -143,6 +143,8 @@ The [`devcontainers/ci` action](https://github.com/marketplace/actions/devcontai
 | noCache                   | false    | Builds the image with `--no-cache` (takes precedence over `cacheFrom`)                                                                                                                                                                         |
 | cacheTo                 | false    | Specify the image to cache the built image to                                                                                                                                                                                             |
 | platform                  | false    | Platforms for which the image should be built. If omitted, defaults to the platform of the GitHub Actions Runner. Multiple platforms should be comma separated.                                                                                |
+| platformTag               | false    | Tag suffix for this platform build (e.g., `linux-amd64`). Used in matrix builds to push per-platform images that are later merged into a multi-arch manifest.                                                                                 |
+| mergeTag                  | false    | Comma-separated list of platform tags to merge into a multi-arch manifest (e.g., `linux-amd64,linux-arm64`). Used in the merge job after matrix builds complete.                                                                              |
 
 ## Outputs
 

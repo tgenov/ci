@@ -9,13 +9,21 @@ import {
 	DevContainerCliUpArgs,
 } from '../../../common/src/dev-container-cli';
 
-import {isDockerBuildXInstalled, pushImage} from './docker';
+import {isDockerBuildXInstalled, pushImage, createManifest} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {exec} from './exec';
 
 export async function runMain(): Promise<void> {
 	try {
 		task.setTaskVariable('hasRunMain', 'true');
+
+		const mergeTag = task.getInput('mergeTag');
+		if (mergeTag) {
+			console.log('mergeTag is set - skipping build (manifest merge will run in post step)');
+			task.setTaskVariable('mergeTag', mergeTag);
+			return;
+		}
+
 		const buildXInstalled = await isDockerBuildXInstalled();
 		if (!buildXInstalled) {
 			console.log(
@@ -40,6 +48,7 @@ export async function runMain(): Promise<void> {
 		const imageName = task.getInput('imageName');
 		const imageTag = task.getInput('imageTag');
 		const platform = task.getInput('platform');
+		const platformTag = task.getInput('platformTag');
 		const subFolder = task.getInput('subFolder') ?? '.';
 		const relativeConfigFile = task.getInput('configFile');
 		const runCommand = task.getInput('runCmd');
@@ -52,7 +61,7 @@ export async function runMain(): Promise<void> {
 		const skipContainerUserIdUpdate =
 			(task.getInput('skipContainerUserIdUpdate') ?? 'false') === 'true';
 
-		if (platform) {
+		if (platform && !platformTag) {
 			const skopeoInstalled = await isSkopeoInstalled();
 			if (!skopeoInstalled) {
 				console.log(
@@ -61,7 +70,16 @@ export async function runMain(): Promise<void> {
 				return;
 			}
 		}
-		const buildxOutput = platform ? 'type=oci,dest=/tmp/output.tar' : undefined;
+		let buildxOutput: string | undefined;
+		if (platform && !platformTag) {
+			buildxOutput = 'type=oci,dest=/tmp/output.tar';
+		} else if (platform && platformTag) {
+			buildxOutput = 'type=docker';
+		}
+
+		if (platformTag) {
+			task.setTaskVariable('platformTag', platformTag);
+		}
 
 		const log = (message: string): void => console.log(message);
 		const workspaceFolder = path.resolve(checkoutPath, subFolder);
@@ -72,7 +90,11 @@ export async function runMain(): Promise<void> {
 		const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
 		const fullImageNameArray: string[] = [];
 		for (const tag of imageTagArray) {
-			fullImageNameArray.push(`${imageName}:${tag}`);
+			if (platformTag) {
+				fullImageNameArray.push(`${imageName}:${tag}-${platformTag}`);
+			} else {
+				fullImageNameArray.push(`${imageName}:${tag}`);
+			}
 		}
 		if (imageName) {
 			if (fullImageNameArray.length === 1) {
@@ -98,9 +120,9 @@ export async function runMain(): Promise<void> {
 			workspaceFolder,
 			configFile,
 			imageName: fullImageNameArray,
-			platform,
+			platform: platformTag ? undefined : platform,
 			additionalCacheFroms: cacheFrom,
-			output: buildxOutput,
+			output: platformTag ? undefined : buildxOutput,
 			noCache,
 			cacheTo,
 		};
@@ -192,6 +214,27 @@ export async function runPost(): Promise<void> {
 	const pushOnFailedBuild =
 		(task.getInput('pushOnFailedBuild') ?? 'false') === 'true';
 
+	const mergeTag = task.getTaskVariable('mergeTag');
+	if (mergeTag) {
+		if (!imageName) {
+			task.setResult(task.TaskResult.Failed, 'imageName is required for manifest merge');
+			return;
+		}
+		const imageTag = task.getInput('imageTag') ?? 'latest';
+		const imageTagArray = imageTag.split(/\s*,\s*/);
+		const platformTags = mergeTag.split(/\s*,\s*/);
+		for (const tag of imageTagArray) {
+			console.log(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
+			const success = await createManifest(imageName, tag, platformTags);
+			if (!success) {
+				return;
+			}
+		}
+		return;
+	}
+
+	const platformTag = task.getTaskVariable('platformTag');
+
 	// default to 'never' if not set and no imageName
 	if (pushOption === 'never' || (!pushOption && !imageName)) {
 		console.log(`Image push skipped because 'push' is set to '${pushOption}'`);
@@ -260,7 +303,12 @@ export async function runPost(): Promise<void> {
 	const imageTag = task.getInput('imageTag') ?? 'latest';
 	const imageTagArray = imageTag.split(/\s*,\s*/);
 	const platform = task.getInput('platform');
-	if (platform) {
+	if (platformTag) {
+		for (const tag of imageTagArray) {
+			console.log(`Pushing platform image '${imageName}:${tag}-${platformTag}'...`);
+			await pushImage(imageName, `${tag}-${platformTag}`);
+		}
+	} else if (platform) {
 		for (const tag of imageTagArray) {
 			console.log(`Copying multiplatform image '${imageName}:${tag}'...`);
 			const imageSource = `oci-archive:/tmp/output.tar:${tag}`;
