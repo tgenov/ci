@@ -111,12 +111,18 @@ export async function runMain(): Promise<void> {
 		if (imageName) {
 			if (fullImageNameArray.length === 1) {
 				if (!noCache && !cacheFrom.includes(fullImageNameArray[0])) {
+					// If the cacheFrom options don't include the fullImageName, add it here
+					// This ensures that when building a PR where the image specified in the action
+					// isn't included in devcontainer.json (or docker-compose.yml), the action still
+					// resolves a previous image for the tag as a layer cache (if pushed to a registry)
+
 					core.info(
 						`Adding --cache-from ${fullImageNameArray[0]} to build args`,
 					);
 					cacheFrom.splice(0, 0, fullImageNameArray[0]);
 				}
 			} else {
+				// Don't automatically add --cache-from if multiple image tags are specified
 				core.info(
 					'Not adding --cache-from automatically since multiple image tags were supplied',
 				);
@@ -255,15 +261,18 @@ export async function runPost(): Promise<void> {
 
 	const platformTag = emptyStringAsUndefined(core.getState('platformTag'));
 
+	// default to 'never' if not set and no imageName
 	if (pushOption === 'never' || (!pushOption && !imageName)) {
 		core.info(`Image push skipped because 'push' is set to '${pushOption}'`);
 		return;
 	}
 
+	// default to 'filter' if not set and imageName is set
 	if (pushOption === 'filter' || (!pushOption && imageName)) {
+		// https://docs.github.com/en/actions/reference/environment-variables#default-environment-variables
 		const ref = process.env.GITHUB_REF;
 		if (
-			refFilterForPush.length !== 0 &&
+			refFilterForPush.length !== 0 && // empty filter allows all
 			!refFilterForPush.some(s => s === ref)
 		) {
 			core.info(
@@ -273,7 +282,7 @@ export async function runPost(): Promise<void> {
 		}
 		const eventName = process.env.GITHUB_EVENT_NAME;
 		if (
-			eventFilterForPush.length !== 0 &&
+			eventFilterForPush.length !== 0 && // empty filter allows all
 			!eventFilterForPush.some(s => s === eventName)
 		) {
 			core.info(
@@ -291,6 +300,7 @@ export async function runPost(): Promise<void> {
 	const imageTagArray = imageTag.split(/\s*,\s*/);
 	if (!imageName) {
 		if (pushOption) {
+			// pushOption was set (and not to "never") - give an error that imageName is required
 			core.error('imageName is required to push images');
 		}
 		return;
