@@ -141,7 +141,7 @@ describe('createMultiPlatformImage', () => {
 		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
 			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
 
-		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', [' linux-amd64 ', 'linux-arm64']);
+		await createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', [' linux-amd64 ', 'linux-arm64']);
 
 		expect(mockExec).toHaveBeenCalledWith(
 			'docker',
@@ -159,7 +159,7 @@ describe('createMultiPlatformImage', () => {
 		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
 			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
 
-		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', '', ' ']);
+		await createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', '', ' ']);
 
 		expect(mockExec).toHaveBeenCalledWith(
 			'docker',
@@ -177,7 +177,7 @@ describe('createMultiPlatformImage', () => {
 			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
 
 		await expect(
-			createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['', ' ']),
+			createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['', ' ']),
 		).rejects.toThrow('platformTags must contain at least one non-empty entry');
 
 		expect(mockExec).not.toHaveBeenCalled();

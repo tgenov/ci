@@ -1945,7 +1945,7 @@ exports.isDockerBuildXInstalled = isDockerBuildXInstalled;
 exports.buildImage = buildImage;
 exports.runContainer = runContainer;
 exports.pushImage = pushImage;
-exports.createManifest = createManifest;
+exports.createMultiPlatformImage = createMultiPlatformImage;
 const core = __importStar(__nccwpck_require__(7484));
 const docker = __importStar(__nccwpck_require__(7877));
 const exec_1 = __nccwpck_require__(1031);
@@ -2001,11 +2001,11 @@ function pushImage(imageName, imageTag) {
         }
     });
 }
-function createManifest(imageName, tag, platformTags) {
+function createMultiPlatformImage(imageName, tag, platformTags) {
     return __awaiter(this, void 0, void 0, function* () {
         core.startGroup(`📦 Creating multi-arch manifest for '${imageName}:${tag}'...`);
         try {
-            yield docker.createManifest(exec_1.exec, imageName, tag, platformTags);
+            yield docker.createMultiPlatformImage(exec_1.exec, imageName, tag, platformTags);
             return true;
         }
         catch (error) {
@@ -2151,6 +2151,7 @@ const dev_container_cli_1 = __nccwpck_require__(9467);
 const docker_1 = __nccwpck_require__(2306);
 const skopeo_1 = __nccwpck_require__(3967);
 const envvars_1 = __nccwpck_require__(5564);
+const platform_1 = __nccwpck_require__(3874);
 // List the env vars that point to paths to mount in the dev container
 // See https://docs.github.com/en/actions/learn-github-actions/variables
 const githubEnvs = {
@@ -2212,9 +2213,6 @@ function runMain() {
             if (platform && !platformTag) {
                 buildxOutput = 'type=oci,dest=/tmp/output.tar';
             }
-            else if (platform && platformTag) {
-                buildxOutput = 'type=docker';
-            }
             if (platformTag) {
                 core.saveState('platformTag', platformTag);
             }
@@ -2223,15 +2221,7 @@ function runMain() {
             const configFile = relativeConfigFile && path_1.default.resolve(checkoutPath, relativeConfigFile);
             const resolvedImageTag = imageTag !== null && imageTag !== void 0 ? imageTag : 'latest';
             const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
-            const fullImageNameArray = [];
-            for (const tag of imageTagArray) {
-                if (platformTag) {
-                    fullImageNameArray.push(`${imageName}:${tag}-${platformTag}`);
-                }
-                else {
-                    fullImageNameArray.push(`${imageName}:${tag}`);
-                }
-            }
+            const fullImageNameArray = (0, platform_1.buildImageNames)(imageName !== null && imageName !== void 0 ? imageName : '', imageTagArray, platformTag);
             if (imageName) {
                 if (fullImageNameArray.length === 1) {
                     if (!noCache && !cacheFrom.includes(fullImageNameArray[0])) {
@@ -2346,29 +2336,12 @@ function runMain() {
 }
 function runPost() {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
+        var _a;
         const pushOption = emptyStringAsUndefined(core.getInput('push'));
         const imageName = emptyStringAsUndefined(core.getInput('imageName'));
         const refFilterForPush = core.getMultilineInput('refFilterForPush');
         const eventFilterForPush = core.getMultilineInput('eventFilterForPush');
         const mergeTag = emptyStringAsUndefined(core.getState('mergeTag'));
-        if (mergeTag) {
-            if (!imageName) {
-                core.setFailed('imageName is required for manifest merge');
-                return;
-            }
-            const imageTag = (_a = emptyStringAsUndefined(core.getInput('imageTag'))) !== null && _a !== void 0 ? _a : 'latest';
-            const imageTagArray = imageTag.split(/\s*,\s*/);
-            const platformTags = mergeTag.split(/\s*,\s*/);
-            for (const tag of imageTagArray) {
-                core.info(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
-                const success = yield (0, docker_1.createManifest)(imageName, tag, platformTags);
-                if (!success) {
-                    return;
-                }
-            }
-            return;
-        }
         const platformTag = emptyStringAsUndefined(core.getState('platformTag'));
         // default to 'never' if not set and no imageName
         if (pushOption === 'never' || (!pushOption && !imageName)) {
@@ -2395,12 +2368,19 @@ function runPost() {
             core.setFailed(`Unexpected push value ('${pushOption})'`);
             return;
         }
-        const imageTag = (_b = emptyStringAsUndefined(core.getInput('imageTag'))) !== null && _b !== void 0 ? _b : 'latest';
+        const imageTag = (_a = emptyStringAsUndefined(core.getInput('imageTag'))) !== null && _a !== void 0 ? _a : 'latest';
         const imageTagArray = imageTag.split(/\s*,\s*/);
         if (!imageName) {
             if (pushOption) {
                 // pushOption was set (and not to "never") - give an error that imageName is required
                 core.error('imageName is required to push images');
+            }
+            return;
+        }
+        if (mergeTag) {
+            const success = yield (0, platform_1.mergeMultiPlatformImages)(imageName, imageTagArray, mergeTag, docker_1.createMultiPlatformImage, (msg) => core.info(msg));
+            if (!success) {
+                return;
             }
             return;
         }
@@ -28619,7 +28599,7 @@ exports.isDockerBuildXInstalled = isDockerBuildXInstalled;
 exports.buildImage = buildImage;
 exports.runContainer = runContainer;
 exports.pushImage = pushImage;
-exports.createManifest = createManifest;
+exports.createMultiPlatformImage = createMultiPlatformImage;
 exports.parseMount = parseMount;
 const path_1 = __importDefault(__nccwpck_require__(6928));
 const fs = __importStar(__nccwpck_require__(9896));
@@ -28837,16 +28817,20 @@ function pushImage(exec, imageName, imageTag) {
         }
     });
 }
-function createManifest(exec, imageName, tag, platformTags) {
+function createMultiPlatformImage(exec, imageName, tag, platformTags) {
     return __awaiter(this, void 0, void 0, function* () {
+        platformTags = platformTags.map(t => t.trim()).filter(t => t.length > 0);
+        if (platformTags.length === 0) {
+            throw new Error('platformTags must contain at least one non-empty entry');
+        }
         const args = ['buildx', 'imagetools', 'create'];
         args.push('-t', `${imageName}:${tag}`);
         for (const platformTag of platformTags) {
             args.push(`${imageName}:${tag}-${platformTag}`);
         }
-        const { exitCode } = yield exec('docker', args, {});
+        const { exitCode, stdout, stderr } = yield exec('docker', args, {});
         if (exitCode !== 0) {
-            throw new Error(`manifest creation failed with ${exitCode}`);
+            throw new Error(`manifest creation failed with exit code ${exitCode}${stderr ? `: ${stderr}` : ''}${stdout ? `\nstdout: ${stdout}` : ''}`);
         }
     });
 }
@@ -28974,6 +28958,57 @@ function getAbsolutePath(inputPath, referencePath) {
         return inputPath;
     }
     return path_1.default.join(referencePath, inputPath);
+}
+
+
+/***/ }),
+
+/***/ 3874:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildImageNames = buildImageNames;
+exports.mergeMultiPlatformImages = mergeMultiPlatformImages;
+/**
+ * Build full image name strings, optionally suffixed with a platform tag.
+ *
+ * Example:
+ *   buildImageNames('ghcr.io/org/img', ['v1', 'latest'], 'linux-amd64')
+ *   => ['ghcr.io/org/img:v1-linux-amd64', 'ghcr.io/org/img:latest-linux-amd64']
+ */
+function buildImageNames(imageName, imageTags, platformTag) {
+    return imageTags.map(tag => platformTag
+        ? `${imageName}:${tag}-${platformTag}`
+        : `${imageName}:${tag}`);
+}
+/**
+ * Create multi-arch manifests for each image tag by merging per-platform images.
+ *
+ * Returns true if all manifests were created successfully, false otherwise.
+ */
+function mergeMultiPlatformImages(imageName, imageTags, mergeTag, createFn, log) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const platformTags = mergeTag.split(/\s*,\s*/);
+        for (const tag of imageTags) {
+            log(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
+            const success = yield createFn(imageName, tag, platformTags);
+            if (!success) {
+                return false;
+            }
+        }
+        return true;
+    });
 }
 
 
