@@ -238,25 +238,6 @@ export async function runPost(): Promise<void> {
 		core.getMultilineInput('eventFilterForPush');
 
 	const mergeTag = emptyStringAsUndefined(core.getState('mergeTag'));
-	if (mergeTag) {
-		if (!imageName) {
-			core.setFailed('imageName is required for manifest merge');
-			return;
-		}
-		const imageTag =
-			emptyStringAsUndefined(core.getInput('imageTag')) ?? 'latest';
-		const imageTagArray = imageTag.split(/\s*,\s*/);
-		const platformTags = mergeTag.split(/\s*,\s*/);
-		for (const tag of imageTagArray) {
-			core.info(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
-			const success = await createManifest(imageName, tag, platformTags);
-			if (!success) {
-				return;
-			}
-		}
-		return;
-	}
-
 	const platformTag = emptyStringAsUndefined(core.getState('platformTag'));
 
 	// default to 'never' if not set and no imageName
@@ -300,6 +281,18 @@ export async function runPost(): Promise<void> {
 		if (pushOption) {
 			// pushOption was set (and not to "never") - give an error that imageName is required
 			core.error('imageName is required to push images');
+		}
+		return;
+	}
+
+	if (mergeTag) {
+		const platformTags = mergeTag.split(/\s*,\s*/);
+		for (const tag of imageTagArray) {
+			core.info(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
+			const success = await createManifest(imageName, tag, platformTags);
+			if (!success) {
+				return;
+			}
 		}
 		return;
 	}

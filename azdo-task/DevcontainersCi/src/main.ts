@@ -213,24 +213,6 @@ export async function runPost(): Promise<void> {
 		(task.getInput('pushOnFailedBuild') ?? 'false') === 'true';
 
 	const mergeTag = task.getTaskVariable('mergeTag');
-	if (mergeTag) {
-		if (!imageName) {
-			task.setResult(task.TaskResult.Failed, 'imageName is required for manifest merge');
-			return;
-		}
-		const imageTag = task.getInput('imageTag') ?? 'latest';
-		const imageTagArray = imageTag.split(/\s*,\s*/);
-		const platformTags = mergeTag.split(/\s*,\s*/);
-		for (const tag of imageTagArray) {
-			console.log(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
-			const success = await createManifest(imageName, tag, platformTags);
-			if (!success) {
-				return;
-			}
-		}
-		return;
-	}
-
 	const platformTag = task.getTaskVariable('platformTag');
 
 	// default to 'never' if not set and no imageName
@@ -300,6 +282,19 @@ export async function runPost(): Promise<void> {
 	}
 	const imageTag = task.getInput('imageTag') ?? 'latest';
 	const imageTagArray = imageTag.split(/\s*,\s*/);
+
+	if (mergeTag) {
+		const platformTags = mergeTag.split(/\s*,\s*/);
+		for (const tag of imageTagArray) {
+			console.log(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
+			const success = await createManifest(imageName, tag, platformTags);
+			if (!success) {
+				return;
+			}
+		}
+		return;
+	}
+
 	const platform = task.getInput('platform');
 	if (platformTag) {
 		for (const tag of imageTagArray) {
