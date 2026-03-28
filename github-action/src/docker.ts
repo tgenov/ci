@@ -83,9 +83,7 @@ export async function createMultiPlatformImage(
 	tag: string,
 	platformTags: string[],
 ): Promise<boolean> {
-	core.startGroup(
-		`📦 Creating multi-arch manifest for '${imageName}:${tag}'...`,
-	);
+	core.startGroup(`📦 ${imageName}:${tag}`);
 	try {
 		await docker.createMultiPlatformImage(exec, imageName, tag, platformTags);
 		return true;

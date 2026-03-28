@@ -4,9 +4,9 @@ Building dev containers to support multiple platforms (aka CPU architectures) is
 
 ## General Notes/Caveats
 
-- Multiplatform builds utilize emulation to build on architectures not native to the system the build is running on. This will significantly increase build times over native, single architecture builds.
-- If you are using runCmd, the command will only be run on the architecure of the system the build is running on. This means that, if you are using runCmd to test the image, there may be bugs on the alternate platforms that will not be caught by your test suite. Manual post-build testing is advised.
-- As of October 2022, all hosted servers for GitHub Actions and Azure Pipelines are x86_64 only. If you want to automatically run runCmd-based tests on your devcontainer on another architecure, you'll need a self-hosted runner on that architecture. It is possible that there will be future support for hosted arm64 machines, see [here for a tracking issue for Linux](https://github.com/actions/runner-images/issues/5631).
+- Emulation-based multiplatform builds (using QEMU) will significantly increase build times over native, single architecture builds. For faster builds, consider using the [native matrix strategy](#native-multi-platform-builds-matrix-strategy) instead.
+- If you are using runCmd, the command will only be run on the architecture of the system the build is running on. This means that, if you are using runCmd to test the image, there may be bugs on the alternate platforms that will not be caught by your test suite. Manual post-build testing is advised.
+- GitHub Actions now offers hosted ARM runners (e.g. `ubuntu-24.04-arm`). For Azure Pipelines, you will need a self-hosted ARM agent for native ARM builds.
 
 ## GitHub Actions Example
 
@@ -141,6 +141,13 @@ stages:
     pool:
       vmImage: ubuntu-latest
     steps:
+    - task: Docker@2
+      displayName: Login to Container Registry
+      inputs:
+        command: login
+        containerRegistry: RegistryNameHere
+    - script: docker buildx create --use
+      displayName: Set up docker buildx
     - task: DevcontainersCi@0
       inputs:
         imageName: myregistry.azurecr.io/devcontainer
@@ -152,6 +159,13 @@ stages:
     pool:
       name: 'Self-Hosted-ARM64'  # Use an ARM64 agent for native builds
     steps:
+    - task: Docker@2
+      displayName: Login to Container Registry
+      inputs:
+        command: login
+        containerRegistry: RegistryNameHere
+    - script: docker buildx create --use
+      displayName: Set up docker buildx
     - task: DevcontainersCi@0
       inputs:
         imageName: myregistry.azurecr.io/devcontainer
@@ -166,6 +180,13 @@ stages:
     pool:
       vmImage: ubuntu-latest
     steps:
+    - task: Docker@2
+      displayName: Login to Container Registry
+      inputs:
+        command: login
+        containerRegistry: RegistryNameHere
+    - script: docker buildx create --use
+      displayName: Set up docker buildx
     - task: DevcontainersCi@0
       inputs:
         imageName: myregistry.azurecr.io/devcontainer

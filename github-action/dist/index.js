@@ -2003,7 +2003,7 @@ function pushImage(imageName, imageTag) {
 }
 function createMultiPlatformImage(imageName, tag, platformTags) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.startGroup(`📦 Creating multi-arch manifest for '${imageName}:${tag}'...`);
+        core.startGroup(`📦 ${imageName}:${tag}`);
         try {
             yield docker.createMultiPlatformImage(exec_1.exec, imageName, tag, platformTags);
             return true;
