@@ -73,8 +73,6 @@ export async function runMain(): Promise<void> {
 		let buildxOutput: string | undefined;
 		if (platform && !platformTag) {
 			buildxOutput = 'type=oci,dest=/tmp/output.tar';
-		} else if (platform && platformTag) {
-			buildxOutput = 'type=docker';
 		}
 
 		if (platformTag) {
