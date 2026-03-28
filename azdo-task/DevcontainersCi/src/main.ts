@@ -12,6 +12,7 @@ import {
 import {isDockerBuildXInstalled, pushImage, createMultiPlatformImage} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {exec} from './exec';
+import {buildImageNames, mergeMultiPlatformImages} from '../../../common/src/platform';
 
 export async function runMain(): Promise<void> {
 	try {
@@ -86,14 +87,11 @@ export async function runMain(): Promise<void> {
 
 		const resolvedImageTag = imageTag ?? 'latest';
 		const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
-		const fullImageNameArray: string[] = [];
-		for (const tag of imageTagArray) {
-			if (platformTag) {
-				fullImageNameArray.push(`${imageName}:${tag}-${platformTag}`);
-			} else {
-				fullImageNameArray.push(`${imageName}:${tag}`);
-			}
-		}
+		const fullImageNameArray = buildImageNames(
+			imageName ?? '',
+			imageTagArray,
+			platformTag,
+		);
 		if (imageName) {
 			if (fullImageNameArray.length === 1) {
 				if (!noCache && !cacheFrom.includes(fullImageNameArray[0])) {
@@ -284,13 +282,15 @@ export async function runPost(): Promise<void> {
 	const imageTagArray = imageTag.split(/\s*,\s*/);
 
 	if (mergeTag) {
-		const platformTags = mergeTag.split(/\s*,\s*/);
-		for (const tag of imageTagArray) {
-			console.log(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
-			const success = await createMultiPlatformImage(imageName, tag, platformTags);
-			if (!success) {
-				return;
-			}
+		const success = await mergeMultiPlatformImages(
+			imageName,
+			imageTagArray,
+			mergeTag,
+			createMultiPlatformImage,
+			(msg: string) => console.log(msg),
+		);
+		if (!success) {
+			return;
 		}
 		return;
 	}

@@ -12,6 +12,7 @@ import {
 import {isDockerBuildXInstalled, pushImage, createMultiPlatformImage} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {populateDefaults} from '../../common/src/envvars';
+import {buildImageNames, mergeMultiPlatformImages} from '../../common/src/platform';
 
 // List the env vars that point to paths to mount in the dev container
 // See https://docs.github.com/en/actions/learn-github-actions/variables
@@ -98,14 +99,11 @@ export async function runMain(): Promise<void> {
 
 		const resolvedImageTag = imageTag ?? 'latest';
 		const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
-		const fullImageNameArray: string[] = [];
-		for (const tag of imageTagArray) {
-			if (platformTag) {
-				fullImageNameArray.push(`${imageName}:${tag}-${platformTag}`);
-			} else {
-				fullImageNameArray.push(`${imageName}:${tag}`);
-			}
-		}
+		const fullImageNameArray = buildImageNames(
+			imageName ?? '',
+			imageTagArray,
+			platformTag,
+		);
 		if (imageName) {
 			if (fullImageNameArray.length === 1) {
 				if (!noCache && !cacheFrom.includes(fullImageNameArray[0])) {
@@ -286,13 +284,15 @@ export async function runPost(): Promise<void> {
 	}
 
 	if (mergeTag) {
-		const platformTags = mergeTag.split(/\s*,\s*/);
-		for (const tag of imageTagArray) {
-			core.info(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
-			const success = await createMultiPlatformImage(imageName, tag, platformTags);
-			if (!success) {
-				return;
-			}
+		const success = await mergeMultiPlatformImages(
+			imageName,
+			imageTagArray,
+			mergeTag,
+			createMultiPlatformImage,
+			(msg: string) => core.info(msg),
+		);
+		if (!success) {
+			return;
 		}
 		return;
 	}
