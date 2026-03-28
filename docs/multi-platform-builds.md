@@ -149,7 +149,7 @@ stages:
 
   - job: BuildArm64
     pool:
-      vmImage: ubuntu-latest
+      name: 'Self-Hosted-ARM64'  # Use an ARM64 agent for native builds
     steps:
     - task: DevcontainersCi@0
       inputs:
