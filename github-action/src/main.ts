@@ -9,10 +9,17 @@ import {
 	DevContainerCliUpArgs,
 } from '../../common/src/dev-container-cli';
 
-import {isDockerBuildXInstalled, pushImage, createMultiPlatformImage} from './docker';
+import {
+	isDockerBuildXInstalled,
+	pushImage,
+	createMultiPlatformImage,
+} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {populateDefaults} from '../../common/src/envvars';
-import {buildImageNames, mergeMultiPlatformImages} from '../../common/src/platform';
+import {
+	buildImageNames,
+	mergeMultiPlatformImages,
+} from '../../common/src/platform';
 
 // List the env vars that point to paths to mount in the dev container
 // See https://docs.github.com/en/actions/learn-github-actions/variables
@@ -30,7 +37,9 @@ export async function runMain(): Promise<void> {
 
 		const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag'));
 		if (mergeTag) {
-			core.info('mergeTag is set - skipping build (manifest merge will run in post step)');
+			core.info(
+				'mergeTag is set - skipping build (manifest merge will run in post step)',
+			);
 			core.saveState('mergeTag', mergeTag);
 			return;
 		}
@@ -300,7 +309,9 @@ export async function runPost(): Promise<void> {
 	const platform = emptyStringAsUndefined(core.getInput('platform'));
 	if (platformTag) {
 		for (const tag of imageTagArray) {
-			core.info(`Pushing platform image '${imageName}:${tag}-${platformTag}'...`);
+			core.info(
+				`Pushing platform image '${imageName}:${tag}-${platformTag}'...`,
+			);
 			await pushImage(imageName, `${tag}-${platformTag}`);
 		}
 	} else if (platform) {

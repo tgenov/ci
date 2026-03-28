@@ -9,10 +9,17 @@ import {
 	DevContainerCliUpArgs,
 } from '../../../common/src/dev-container-cli';
 
-import {isDockerBuildXInstalled, pushImage, createMultiPlatformImage} from './docker';
+import {
+	isDockerBuildXInstalled,
+	pushImage,
+	createMultiPlatformImage,
+} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {exec} from './exec';
-import {buildImageNames, mergeMultiPlatformImages} from '../../../common/src/platform';
+import {
+	buildImageNames,
+	mergeMultiPlatformImages,
+} from '../../../common/src/platform';
 
 export async function runMain(): Promise<void> {
 	try {
@@ -20,7 +27,9 @@ export async function runMain(): Promise<void> {
 
 		const mergeTag = task.getInput('mergeTag');
 		if (mergeTag) {
-			console.log('mergeTag is set - skipping build (manifest merge will run in post step)');
+			console.log(
+				'mergeTag is set - skipping build (manifest merge will run in post step)',
+			);
 			task.setTaskVariable('mergeTag', mergeTag);
 			return;
 		}
@@ -298,7 +307,9 @@ export async function runPost(): Promise<void> {
 	const platform = task.getInput('platform');
 	if (platformTag) {
 		for (const tag of imageTagArray) {
-			console.log(`Pushing platform image '${imageName}:${tag}-${platformTag}'...`);
+			console.log(
+				`Pushing platform image '${imageName}:${tag}-${platformTag}'...`,
+			);
 			await pushImage(imageName, `${tag}-${platformTag}`);
 		}
 	} else if (platform) {
