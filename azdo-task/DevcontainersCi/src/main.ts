@@ -25,7 +25,8 @@ export async function runMain(): Promise<void> {
 	try {
 		task.setTaskVariable('hasRunMain', 'true');
 
-		const mergeTag = task.getInput('mergeTag');
+		const rawMergeTag = task.getInput('mergeTag');
+		const mergeTag = rawMergeTag?.trim() || undefined;
 		const rawPlatformTag = task.getInput('platformTag');
 		const platformTag = rawPlatformTag?.trim() || undefined;
 
