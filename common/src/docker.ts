@@ -343,16 +343,21 @@ export async function createManifest(
 	tag: string,
 	platformTags: string[],
 ): Promise<void> {
+	platformTags = platformTags.map(t => t.trim()).filter(t => t.length > 0);
+	if (platformTags.length === 0) {
+		throw new Error('platformTags must contain at least one non-empty entry');
+	}
+
 	const args = ['buildx', 'imagetools', 'create'];
 	args.push('-t', `${imageName}:${tag}`);
 	for (const platformTag of platformTags) {
 		args.push(`${imageName}:${tag}-${platformTag}`);
 	}
 
-	const {exitCode} = await exec('docker', args, {});
+	const {exitCode, stdout, stderr} = await exec('docker', args, {});
 
 	if (exitCode !== 0) {
-		throw new Error(`manifest creation failed with ${exitCode}`);
+		throw new Error(`manifest creation failed with exit code ${exitCode}${stderr ? `: ${stderr}` : ''}${stdout ? `\nstdout: ${stdout}` : ''}`);
 	}
 }
 

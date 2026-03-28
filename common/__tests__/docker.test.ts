@@ -86,7 +86,7 @@ describe('createManifest', () => {
 
 		await expect(
 			createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', 'linux-arm64']),
-		).rejects.toThrow('manifest creation failed with 1');
+		).rejects.toThrow('manifest creation failed with exit code 1: error');
 	});
 
 	test('should handle a single platform tag', async () => {
@@ -135,5 +135,51 @@ describe('createManifest', () => {
 			],
 			{},
 		);
+	});
+
+	test('should trim whitespace from platform tags', async () => {
+		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
+			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
+
+		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', [' linux-amd64 ', 'linux-arm64']);
+
+		expect(mockExec).toHaveBeenCalledWith(
+			'docker',
+			[
+				'buildx', 'imagetools', 'create',
+				'-t', 'ghcr.io/my-org/my-image:v1.0.0',
+				'ghcr.io/my-org/my-image:v1.0.0-linux-amd64',
+				'ghcr.io/my-org/my-image:v1.0.0-linux-arm64',
+			],
+			{},
+		);
+	});
+
+	test('should filter out empty platform tags', async () => {
+		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
+			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
+
+		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', '', ' ']);
+
+		expect(mockExec).toHaveBeenCalledWith(
+			'docker',
+			[
+				'buildx', 'imagetools', 'create',
+				'-t', 'ghcr.io/my-org/my-image:v1.0.0',
+				'ghcr.io/my-org/my-image:v1.0.0-linux-amd64',
+			],
+			{},
+		);
+	});
+
+	test('should throw when all platform tags are empty', async () => {
+		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
+			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
+
+		await expect(
+			createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['', ' ']),
+		).rejects.toThrow('platformTags must contain at least one non-empty entry');
+
+		expect(mockExec).not.toHaveBeenCalled();
 	});
 });
