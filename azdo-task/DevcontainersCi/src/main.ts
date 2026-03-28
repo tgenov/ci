@@ -26,7 +26,16 @@ export async function runMain(): Promise<void> {
 		task.setTaskVariable('hasRunMain', 'true');
 
 		const mergeTag = task.getInput('mergeTag');
-		const platformTag = task.getInput('platformTag');
+		const rawPlatformTag = task.getInput('platformTag');
+		const platformTag = rawPlatformTag?.trim() || undefined;
+
+		if (platformTag && /[\s,]/.test(platformTag)) {
+			task.setResult(
+				task.TaskResult.Failed,
+				`Invalid platformTag '${platformTag}' - must not contain whitespace or commas. Use mergeTag to specify multiple platforms.`,
+			);
+			return;
+		}
 
 		if (mergeTag && platformTag) {
 			task.setResult(

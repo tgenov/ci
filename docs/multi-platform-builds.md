@@ -92,10 +92,8 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
-            platform: linux/amd64
             platformTag: linux-amd64
           - runner: ubuntu-24.04-arm
-            platform: linux/arm64
             platformTag: linux-arm64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -109,7 +107,6 @@ jobs:
       - uses: devcontainers/ci@v0.3
         with:
           imageName: ghcr.io/example/myimage
-          platform: ${{ matrix.platform }}
           platformTag: ${{ matrix.platformTag }}
           push: always
 

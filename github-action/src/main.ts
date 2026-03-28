@@ -36,7 +36,16 @@ export async function runMain(): Promise<void> {
 		core.saveState('hasRunMain', 'true');
 
 		const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag'));
-		const platformTag = emptyStringAsUndefined(core.getInput('platformTag'));
+		const platformTag = emptyStringAsUndefined(
+			core.getInput('platformTag').trim(),
+		);
+
+		if (platformTag && /[\s,]/.test(platformTag)) {
+			core.setFailed(
+				`Invalid platformTag '${platformTag}' - must not contain whitespace or commas. Use mergeTag to specify multiple platforms.`,
+			);
+			return;
+		}
 
 		if (mergeTag && platformTag) {
 			core.setFailed(
