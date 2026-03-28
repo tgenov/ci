@@ -35,7 +35,7 @@ export async function runMain(): Promise<void> {
 		core.info('Starting...');
 		core.saveState('hasRunMain', 'true');
 
-		const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag'));
+		const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag').trim());
 		const platformTag = emptyStringAsUndefined(
 			core.getInput('platformTag').trim(),
 		);
