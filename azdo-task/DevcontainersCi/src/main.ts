@@ -26,7 +26,25 @@ export async function runMain(): Promise<void> {
 		task.setTaskVariable('hasRunMain', 'true');
 
 		const mergeTag = task.getInput('mergeTag');
+		const platformTag = task.getInput('platformTag');
+
+		if (mergeTag && platformTag) {
+			task.setResult(
+				task.TaskResult.Failed,
+				'mergeTag and platformTag cannot be used together - mergeTag is for the manifest merge job, platformTag is for per-platform build jobs',
+			);
+			return;
+		}
+
 		if (mergeTag) {
+			const pushOption = task.getInput('push');
+			if (pushOption !== 'always') {
+				task.setResult(
+					task.TaskResult.Failed,
+					"push must be set to 'always' when using mergeTag - the manifest merge job must push the resulting multi-arch image",
+				);
+				return;
+			}
 			console.log(
 				'mergeTag is set - skipping build (manifest merge will run in post step)',
 			);
@@ -58,7 +76,6 @@ export async function runMain(): Promise<void> {
 		const imageName = task.getInput('imageName');
 		const imageTag = task.getInput('imageTag');
 		const platform = task.getInput('platform');
-		const platformTag = task.getInput('platformTag');
 		const subFolder = task.getInput('subFolder') ?? '.';
 		const relativeConfigFile = task.getInput('configFile');
 		const runCommand = task.getInput('runCmd');
@@ -291,16 +308,13 @@ export async function runPost(): Promise<void> {
 	const imageTagArray = imageTag.split(/\s*,\s*/);
 
 	if (mergeTag) {
-		const success = await mergeMultiPlatformImages(
+		await mergeMultiPlatformImages(
 			imageName,
 			imageTagArray,
 			mergeTag,
 			createMultiPlatformImage,
 			(msg: string) => console.log(msg),
 		);
-		if (!success) {
-			return;
-		}
 		return;
 	}
 

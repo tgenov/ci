@@ -36,7 +36,23 @@ export async function runMain(): Promise<void> {
 		core.saveState('hasRunMain', 'true');
 
 		const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag'));
+		const platformTag = emptyStringAsUndefined(core.getInput('platformTag'));
+
+		if (mergeTag && platformTag) {
+			core.setFailed(
+				'mergeTag and platformTag cannot be used together - mergeTag is for the manifest merge job, platformTag is for per-platform build jobs',
+			);
+			return;
+		}
+
 		if (mergeTag) {
+			const pushOption = emptyStringAsUndefined(core.getInput('push'));
+			if (pushOption !== 'always') {
+				core.setFailed(
+					"push must be set to 'always' when using mergeTag - the manifest merge job must push the resulting multi-arch image",
+				);
+				return;
+			}
 			core.info(
 				'mergeTag is set - skipping build (manifest merge will run in post step)',
 			);
@@ -65,7 +81,6 @@ export async function runMain(): Promise<void> {
 		const imageName = emptyStringAsUndefined(core.getInput('imageName'));
 		const imageTag = emptyStringAsUndefined(core.getInput('imageTag'));
 		const platform = emptyStringAsUndefined(core.getInput('platform'));
-		const platformTag = emptyStringAsUndefined(core.getInput('platformTag'));
 		const subFolder: string = core.getInput('subFolder');
 		const relativeConfigFile = emptyStringAsUndefined(
 			core.getInput('configFile'),
@@ -293,16 +308,13 @@ export async function runPost(): Promise<void> {
 	}
 
 	if (mergeTag) {
-		const success = await mergeMultiPlatformImages(
+		await mergeMultiPlatformImages(
 			imageName,
 			imageTagArray,
 			mergeTag,
 			createMultiPlatformImage,
 			(msg: string) => core.info(msg),
 		);
-		if (!success) {
-			return;
-		}
 		return;
 	}
 

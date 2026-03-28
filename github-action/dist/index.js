@@ -2166,7 +2166,17 @@ function runMain() {
             core.info('Starting...');
             core.saveState('hasRunMain', 'true');
             const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag'));
+            const platformTag = emptyStringAsUndefined(core.getInput('platformTag'));
+            if (mergeTag && platformTag) {
+                core.setFailed('mergeTag and platformTag cannot be used together - mergeTag is for the manifest merge job, platformTag is for per-platform build jobs');
+                return;
+            }
             if (mergeTag) {
+                const pushOption = emptyStringAsUndefined(core.getInput('push'));
+                if (pushOption !== 'always') {
+                    core.setFailed("push must be set to 'always' when using mergeTag - the manifest merge job must push the resulting multi-arch image");
+                    return;
+                }
                 core.info('mergeTag is set - skipping build (manifest merge will run in post step)');
                 core.saveState('mergeTag', mergeTag);
                 return;
@@ -2189,7 +2199,6 @@ function runMain() {
             const imageName = emptyStringAsUndefined(core.getInput('imageName'));
             const imageTag = emptyStringAsUndefined(core.getInput('imageTag'));
             const platform = emptyStringAsUndefined(core.getInput('platform'));
-            const platformTag = emptyStringAsUndefined(core.getInput('platformTag'));
             const subFolder = core.getInput('subFolder');
             const relativeConfigFile = emptyStringAsUndefined(core.getInput('configFile'));
             const runCommand = core.getInput('runCmd');
@@ -2378,10 +2387,7 @@ function runPost() {
             return;
         }
         if (mergeTag) {
-            const success = yield (0, platform_1.mergeMultiPlatformImages)(imageName, imageTagArray, mergeTag, docker_1.createMultiPlatformImage, (msg) => core.info(msg));
-            if (!success) {
-                return;
-            }
+            yield (0, platform_1.mergeMultiPlatformImages)(imageName, imageTagArray, mergeTag, docker_1.createMultiPlatformImage, (msg) => core.info(msg));
             return;
         }
         const platform = emptyStringAsUndefined(core.getInput('platform'));

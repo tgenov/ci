@@ -128,6 +128,7 @@ jobs:
         with:
           imageName: ghcr.io/example/myimage
           mergeTag: linux-amd64,linux-arm64
+          push: always
 ```
 
 ### Azure DevOps Pipelines Example
@@ -169,4 +170,5 @@ stages:
       inputs:
         imageName: myregistry.azurecr.io/devcontainer
         mergeTag: linux-amd64,linux-arm64
+        push: always
 ```
