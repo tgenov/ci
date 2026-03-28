@@ -2171,7 +2171,17 @@ function runMain() {
                 core.setFailed('mergeTag and platformTag cannot be used together - mergeTag is for the manifest merge job, platformTag is for per-platform build jobs');
                 return;
             }
+            const buildXInstalled = yield (0, docker_1.isDockerBuildXInstalled)();
             if (mergeTag) {
+                const imageName = emptyStringAsUndefined(core.getInput('imageName'));
+                if (!imageName) {
+                    core.setFailed('imageName is required when using mergeTag');
+                    return;
+                }
+                if (!buildXInstalled) {
+                    core.setFailed('docker buildx is required for mergeTag - add a step to set up with docker/setup-buildx-action');
+                    return;
+                }
                 const pushOption = emptyStringAsUndefined(core.getInput('push'));
                 if (pushOption !== 'always') {
                     core.setFailed("push must be set to 'always' when using mergeTag - the manifest merge job must push the resulting multi-arch image");
@@ -2181,7 +2191,6 @@ function runMain() {
                 core.saveState('mergeTag', mergeTag);
                 return;
             }
-            const buildXInstalled = yield (0, docker_1.isDockerBuildXInstalled)();
             if (!buildXInstalled) {
                 core.warning('docker buildx not available: add a step to set up with docker/setup-buildx-action - see https://github.com/devcontainers/ci/blob/main/docs/github-action.md');
                 return;
@@ -2230,7 +2239,9 @@ function runMain() {
             const configFile = relativeConfigFile && path_1.default.resolve(checkoutPath, relativeConfigFile);
             const resolvedImageTag = imageTag !== null && imageTag !== void 0 ? imageTag : 'latest';
             const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
-            const fullImageNameArray = (0, platform_1.buildImageNames)(imageName !== null && imageName !== void 0 ? imageName : '', imageTagArray, platformTag);
+            const fullImageNameArray = imageName
+                ? (0, platform_1.buildImageNames)(imageName, imageTagArray, platformTag)
+                : [];
             if (imageName) {
                 if (fullImageNameArray.length === 1) {
                     if (!noCache && !cacheFrom.includes(fullImageNameArray[0])) {

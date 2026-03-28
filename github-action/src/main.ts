@@ -45,7 +45,20 @@ export async function runMain(): Promise<void> {
 			return;
 		}
 
+		const buildXInstalled = await isDockerBuildXInstalled();
+
 		if (mergeTag) {
+			const imageName = emptyStringAsUndefined(core.getInput('imageName'));
+			if (!imageName) {
+				core.setFailed('imageName is required when using mergeTag');
+				return;
+			}
+			if (!buildXInstalled) {
+				core.setFailed(
+					'docker buildx is required for mergeTag - add a step to set up with docker/setup-buildx-action',
+				);
+				return;
+			}
 			const pushOption = emptyStringAsUndefined(core.getInput('push'));
 			if (pushOption !== 'always') {
 				core.setFailed(
@@ -59,8 +72,6 @@ export async function runMain(): Promise<void> {
 			core.saveState('mergeTag', mergeTag);
 			return;
 		}
-
-		const buildXInstalled = await isDockerBuildXInstalled();
 		if (!buildXInstalled) {
 			core.warning(
 				'docker buildx not available: add a step to set up with docker/setup-buildx-action - see https://github.com/devcontainers/ci/blob/main/docs/github-action.md',
@@ -123,11 +134,9 @@ export async function runMain(): Promise<void> {
 
 		const resolvedImageTag = imageTag ?? 'latest';
 		const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
-		const fullImageNameArray = buildImageNames(
-			imageName ?? '',
-			imageTagArray,
-			platformTag,
-		);
+		const fullImageNameArray = imageName
+			? buildImageNames(imageName, imageTagArray, platformTag)
+			: [];
 		if (imageName) {
 			if (fullImageNameArray.length === 1) {
 				if (!noCache && !cacheFrom.includes(fullImageNameArray[0])) {
