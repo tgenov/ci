@@ -72,14 +72,14 @@ export async function pushImage(
 	}
 }
 
-export async function createManifest(
+export async function createMultiPlatformImage(
 	imageName: string,
 	tag: string,
 	platformTags: string[],
 ): Promise<boolean> {
 	console.log(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
 	try {
-		await docker.createManifest(exec, imageName, tag, platformTags);
+		await docker.createMultiPlatformImage(exec, imageName, tag, platformTags);
 		return true;
 	} catch (error) {
 		task.setResult(task.TaskResult.Failed, `${error}`);

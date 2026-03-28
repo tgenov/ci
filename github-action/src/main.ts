@@ -9,7 +9,7 @@ import {
 	DevContainerCliUpArgs,
 } from '../../common/src/dev-container-cli';
 
-import {isDockerBuildXInstalled, pushImage, createManifest} from './docker';
+import {isDockerBuildXInstalled, pushImage, createMultiPlatformImage} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {populateDefaults} from '../../common/src/envvars';
 
@@ -289,7 +289,7 @@ export async function runPost(): Promise<void> {
 		const platformTags = mergeTag.split(/\s*,\s*/);
 		for (const tag of imageTagArray) {
 			core.info(`Creating multi-arch manifest for '${imageName}:${tag}'...`);
-			const success = await createManifest(imageName, tag, platformTags);
+			const success = await createMultiPlatformImage(imageName, tag, platformTags);
 			if (!success) {
 				return;
 			}

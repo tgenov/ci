@@ -1,4 +1,4 @@
-import {parseMount, createManifest} from '../src/docker';
+import {parseMount, createMultiPlatformImage} from '../src/docker';
 import {ExecFunction, ExecResult} from '../src/exec';
 
 describe('parseMount', () => {
@@ -60,12 +60,12 @@ describe('parseMount', () => {
 	});
 });
 
-describe('createManifest', () => {
+describe('createMultiPlatformImage', () => {
 	test('should call docker buildx imagetools create with correct args for two platforms', async () => {
 		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
 			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
 
-		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', 'linux-arm64']);
+		await createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', 'linux-arm64']);
 
 		expect(mockExec).toHaveBeenCalledTimes(1);
 		expect(mockExec).toHaveBeenCalledWith(
@@ -85,7 +85,7 @@ describe('createManifest', () => {
 			.mockResolvedValue({exitCode: 1, stdout: '', stderr: 'error'});
 
 		await expect(
-			createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', 'linux-arm64']),
+			createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64', 'linux-arm64']),
 		).rejects.toThrow('manifest creation failed with exit code 1: error');
 	});
 
@@ -93,7 +93,7 @@ describe('createManifest', () => {
 		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
 			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
 
-		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'latest', ['linux-amd64']);
+		await createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'latest', ['linux-amd64']);
 
 		expect(mockExec).toHaveBeenCalledTimes(1);
 		expect(mockExec).toHaveBeenCalledWith(
@@ -111,8 +111,8 @@ describe('createManifest', () => {
 		const mockExec = jest.fn<Promise<ExecResult>, Parameters<ExecFunction>>()
 			.mockResolvedValue({exitCode: 0, stdout: '', stderr: ''});
 
-		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64']);
-		await createManifest(mockExec, 'ghcr.io/my-org/my-image', 'latest', ['linux-amd64']);
+		await createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['linux-amd64']);
+		await createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'latest', ['linux-amd64']);
 
 		expect(mockExec).toHaveBeenCalledTimes(2);
 		expect(mockExec).toHaveBeenNthCalledWith(

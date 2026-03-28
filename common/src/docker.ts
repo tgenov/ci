@@ -337,7 +337,7 @@ export async function pushImage(
 	}
 }
 
-export async function createManifest(
+export async function createMultiPlatformImage(
 	exec: ExecFunction,
 	imageName: string,
 	tag: string,
