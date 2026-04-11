@@ -35,20 +35,11 @@ describe('mergeMultiPlatformImages', () => {
 			.mockResolvedValue(true);
 		const log = jest.fn();
 
-		await mergeMultiPlatformImages('img', ['v1', 'latest'], 'linux-amd64,linux-arm64', createFn, log);
+		const result = await mergeMultiPlatformImages('img', ['v1', 'latest'], 'linux-amd64,linux-arm64', createFn, log);
 
 		expect(createFn).toHaveBeenCalledTimes(2);
 		expect(createFn).toHaveBeenNthCalledWith(1, 'img', 'v1', ['linux-amd64', 'linux-arm64']);
 		expect(createFn).toHaveBeenNthCalledWith(2, 'img', 'latest', ['linux-amd64', 'linux-arm64']);
-	});
-
-	test('returns true when all createFn calls succeed', async () => {
-		const createFn = jest.fn<Promise<boolean>, [string, string, string[]]>()
-			.mockResolvedValue(true);
-		const log = jest.fn();
-
-		const result = await mergeMultiPlatformImages('img', ['v1', 'latest'], 'linux-amd64,linux-arm64', createFn, log);
-
 		expect(result).toBe(true);
 	});
 
