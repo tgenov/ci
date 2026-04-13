@@ -9,17 +9,10 @@ import {
 	DevContainerCliUpArgs,
 } from '../../common/src/dev-container-cli';
 
-import {
-	isDockerBuildXInstalled,
-	pushImage,
-	createMultiPlatformImage,
-} from './docker';
+import {isDockerBuildXInstalled, pushImage} from './docker';
 import {isSkopeoInstalled, copyImage} from './skopeo';
 import {populateDefaults} from '../../common/src/envvars';
-import {
-	buildImageNames,
-	mergeMultiPlatformImages,
-} from '../../common/src/platform';
+import {buildImageNames, platformToTagSuffix} from '../../common/src/platform';
 
 // List the env vars that point to paths to mount in the dev container
 // See https://docs.github.com/en/actions/learn-github-actions/variables
@@ -35,52 +28,9 @@ export async function runMain(): Promise<void> {
 		core.info('Starting...');
 		core.saveState('hasRunMain', 'true');
 
-		const mergeTag = emptyStringAsUndefined(core.getInput('mergeTag').trim());
-		const platformTag = emptyStringAsUndefined(
-			core.getInput('platformTag').trim(),
-		);
-
-		if (platformTag && /[\s,]/.test(platformTag)) {
-			core.setFailed(
-				`Invalid platformTag '${platformTag}' - must not contain whitespace or commas. Use mergeTag to specify multiple platforms.`,
-			);
-			return;
-		}
-
-		if (mergeTag && platformTag) {
-			core.setFailed(
-				'mergeTag and platformTag cannot be used together - mergeTag is for the manifest merge job, platformTag is for per-platform build jobs',
-			);
-			return;
-		}
+		const useNativeRunner = core.getBooleanInput('useNativeRunner');
 
 		const buildXInstalled = await isDockerBuildXInstalled();
-
-		if (mergeTag) {
-			const imageName = emptyStringAsUndefined(core.getInput('imageName'));
-			if (!imageName) {
-				core.setFailed('imageName is required when using mergeTag');
-				return;
-			}
-			if (!buildXInstalled) {
-				core.setFailed(
-					'docker buildx is required for mergeTag - add a step to set up with docker/setup-buildx-action',
-				);
-				return;
-			}
-			const pushOption = emptyStringAsUndefined(core.getInput('push'));
-			if (pushOption !== 'always') {
-				core.setFailed(
-					"push must be set to 'always' when using mergeTag - the manifest merge job must push the resulting multi-arch image",
-				);
-				return;
-			}
-			core.info(
-				'mergeTag is set - skipping build (manifest merge will run in post step)',
-			);
-			core.saveState('mergeTag', mergeTag);
-			return;
-		}
 		if (!buildXInstalled) {
 			core.warning(
 				'docker buildx not available: add a step to set up with docker/setup-buildx-action - see https://github.com/devcontainers/ci/blob/main/docs/github-action.md',
@@ -118,7 +68,23 @@ export async function runMain(): Promise<void> {
 		const userDataFolder: string = core.getInput('userDataFolder');
 		const mounts: string[] = core.getMultilineInput('mounts');
 
-		if (platform && !platformTag) {
+		if (useNativeRunner) {
+			if (!platform) {
+				core.setFailed('platform is required when useNativeRunner is true');
+				return;
+			}
+			if (platform.includes(',')) {
+				core.setFailed(
+					`useNativeRunner requires a single platform value, got '${platform}'`,
+				);
+				return;
+			}
+		}
+
+		const platformSuffix =
+			useNativeRunner && platform ? platformToTagSuffix(platform) : undefined;
+
+		if (platform && !useNativeRunner) {
 			const skopeoInstalled = await isSkopeoInstalled();
 			if (!skopeoInstalled) {
 				core.warning(
@@ -128,12 +94,13 @@ export async function runMain(): Promise<void> {
 			}
 		}
 		let buildxOutput: string | undefined;
-		if (platform && !platformTag) {
+		if (platform && !useNativeRunner) {
 			buildxOutput = 'type=oci,dest=/tmp/output.tar';
 		}
 
-		if (platformTag) {
-			core.saveState('platformTag', platformTag);
+		if (useNativeRunner) {
+			core.saveState('useNativeRunner', 'true');
+			core.saveState('platformSuffix', platformSuffix!);
 		}
 
 		const log = (message: string): void => core.info(message);
@@ -144,7 +111,7 @@ export async function runMain(): Promise<void> {
 		const resolvedImageTag = imageTag ?? 'latest';
 		const imageTagArray = resolvedImageTag.split(/\s*,\s*/);
 		const fullImageNameArray = imageName
-			? buildImageNames(imageName, imageTagArray, platformTag)
+			? buildImageNames(imageName, imageTagArray, platformSuffix)
 			: [];
 		if (imageName) {
 			if (fullImageNameArray.length === 1) {
@@ -177,10 +144,10 @@ export async function runMain(): Promise<void> {
 				workspaceFolder,
 				configFile,
 				imageName: fullImageNameArray,
-				platform: platformTag ? undefined : platform,
+				platform: useNativeRunner ? undefined : platform,
 				additionalCacheFroms: cacheFrom,
 				userDataFolder,
-				output: platformTag ? undefined : buildxOutput,
+				output: useNativeRunner ? undefined : buildxOutput,
 				noCache,
 				cacheTo,
 			};
@@ -277,8 +244,10 @@ export async function runPost(): Promise<void> {
 	const eventFilterForPush: string[] =
 		core.getMultilineInput('eventFilterForPush');
 
-	const mergeTag = emptyStringAsUndefined(core.getState('mergeTag'));
-	const platformTag = emptyStringAsUndefined(core.getState('platformTag'));
+	const useNativeRunner = core.getState('useNativeRunner') === 'true';
+	const platformSuffix = emptyStringAsUndefined(
+		core.getState('platformSuffix'),
+	);
 
 	// default to 'never' if not set and no imageName
 	if (pushOption === 'never' || (!pushOption && !imageName)) {
@@ -325,24 +294,13 @@ export async function runPost(): Promise<void> {
 		return;
 	}
 
-	if (mergeTag) {
-		await mergeMultiPlatformImages(
-			imageName,
-			imageTagArray,
-			mergeTag,
-			createMultiPlatformImage,
-			(msg: string) => core.info(msg),
-		);
-		return;
-	}
-
 	const platform = emptyStringAsUndefined(core.getInput('platform'));
-	if (platformTag) {
+	if (useNativeRunner && platformSuffix) {
 		for (const tag of imageTagArray) {
 			core.info(
-				`Pushing platform image '${imageName}:${tag}-${platformTag}'...`,
+				`Pushing platform image '${imageName}:${tag}-${platformSuffix}'...`,
 			);
-			await pushImage(imageName, `${tag}-${platformTag}`);
+			await pushImage(imageName, `${tag}-${platformSuffix}`);
 		}
 	} else if (platform) {
 		for (const tag of imageTagArray) {

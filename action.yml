@@ -66,12 +66,10 @@ inputs:
   cacheTo:
     required: false
     description: Specify the image to cache the built image to
-  platformTag:
+  useNativeRunner:
     required: false
-    description: 'Tag suffix for this platform build (e.g., "linux-amd64"). Used in matrix builds to push per-platform images that are later merged.'
-  mergeTag:
-    required: false
-    description: 'Comma-separated list of platform tags to merge into a multi-arch manifest (e.g., "linux-amd64,linux-arm64"). Used in the merge job after matrix builds complete.'
+    default: 'false'
+    description: 'Set to true for native multi-platform builds. When true, platform must be a single value (e.g., linux/amd64) and the image tag suffix is auto-derived (linux/amd64 becomes linux-amd64). The --platform flag is not passed to devcontainer build, relying on the native runner architecture.'
 outputs:
   runCmdOutput:
     description: The output of the command specified in the runCmd input

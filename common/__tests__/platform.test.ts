@@ -24,18 +24,22 @@ describe('buildImageNames', () => {
 	});
 
 	test('single tag with platformSuffix', () => {
-		expect(buildImageNames('img', ['v1'], 'linux-amd64')).toEqual(['img:v1-linux-amd64']);
+		expect(buildImageNames('img', ['v1'], 'linux-amd64')).toEqual([
+			'img:v1-linux-amd64',
+		]);
 	});
 
 	test('multiple tags without platformSuffix', () => {
-		expect(buildImageNames('img', ['v1', 'latest'])).toEqual(['img:v1', 'img:latest']);
+		expect(buildImageNames('img', ['v1', 'latest'])).toEqual([
+			'img:v1',
+			'img:latest',
+		]);
 	});
 
 	test('multiple tags with platformSuffix', () => {
-		expect(buildImageNames('img', ['v1', 'latest'], 'linux-amd64')).toEqual([
-			'img:v1-linux-amd64',
-			'img:latest-linux-amd64',
-		]);
+		expect(
+			buildImageNames('img', ['v1', 'latest'], 'linux-amd64'),
+		).toEqual(['img:v1-linux-amd64', 'img:latest-linux-amd64']);
 	});
 
 	test('empty tags array', () => {

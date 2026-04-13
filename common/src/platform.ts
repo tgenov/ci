@@ -8,7 +8,7 @@ export function platformToTagSuffix(platform: string): string {
 }
 
 /**
- * Build full image name strings, optionally suffixed with a platform tag.
+ * Build full image name strings, optionally suffixed with a platform suffix.
  *
  * Example:
  *   buildImageNames('ghcr.io/org/img', ['v1', 'latest'], 'linux-amd64')
