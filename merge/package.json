@@ -1,0 +1,22 @@
+{
+  "name": "devcontainer-merge-action",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Action to merge per-platform dev container images into a multi-arch manifest",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc --build",
+    "package": "ncc build --source-map --license licenses.txt",
+    "all": "npm run build && npm run package"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.4",
+    "typescript": "^5.9.3",
+    "@types/node": "^24.9.0"
+  }
+}
