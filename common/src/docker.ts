@@ -341,17 +341,21 @@ export async function createMultiPlatformImage(
 	exec: ExecFunction,
 	imageName: string,
 	tag: string,
-	platformTags: string[],
+	platformSuffixes: string[],
 ): Promise<void> {
-	platformTags = platformTags.map(t => t.trim()).filter(t => t.length > 0);
-	if (platformTags.length === 0) {
-		throw new Error('platformTags must contain at least one non-empty entry');
+	platformSuffixes = platformSuffixes
+		.map(t => t.trim())
+		.filter(t => t.length > 0);
+	if (platformSuffixes.length === 0) {
+		throw new Error(
+			'platformSuffixes must contain at least one non-empty entry',
+		);
 	}
 
 	const args = ['buildx', 'imagetools', 'create'];
 	args.push('-t', `${imageName}:${tag}`);
-	for (const platformTag of platformTags) {
-		args.push(`${imageName}:${tag}-${platformTag}`);
+	for (const suffix of platformSuffixes) {
+		args.push(`${imageName}:${tag}-${suffix}`);
 	}
 
 	const {exitCode, stdout, stderr} = await exec('docker', args, {});

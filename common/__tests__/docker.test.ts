@@ -178,7 +178,7 @@ describe('createMultiPlatformImage', () => {
 
 		await expect(
 			createMultiPlatformImage(mockExec, 'ghcr.io/my-org/my-image', 'v1.0.0', ['', ' ']),
-		).rejects.toThrow('platformTags must contain at least one non-empty entry');
+		).rejects.toThrow('platformSuffixes must contain at least one non-empty entry');
 
 		expect(mockExec).not.toHaveBeenCalled();
 	});
