@@ -79,8 +79,8 @@ Instead of using QEMU emulation on a single runner, you can use native runners i
 
 ### How it works
 
-1. **Build jobs** run in parallel on native runners. Each job sets `useNativeRunner: true` and a single `platform` value (e.g., `linux/amd64`). The tag suffix is auto-derived from the platform (e.g., `linux/amd64` becomes `linux-amd64`).
-2. **Merge job** runs after all build jobs complete. It uses a dedicated merge action (`devcontainers/ci/merge` for GitHub Actions, `DevcontainersMerge` for Azure DevOps) to combine the per-platform images into a multi-arch manifest.
+1. **Build jobs** run in parallel on native runners. Each job sets `useNativeRunner: true` and a single `platform` value (e.g., `linux/amd64`). The tag suffix is auto-derived from the platform (e.g., `linux/amd64` becomes `linux-amd64`). Build jobs must set `push: always` so that platform-specific images are pushed regardless of event filters (the merge job needs them in the registry).
+2. **Merge job** runs after all build jobs complete. It uses a dedicated merge action (`devcontainers/ci/merge` for GitHub Actions, `DevcontainersMerge` for Azure DevOps) to combine the per-platform images into a multi-arch manifest. The platform-specific tags (e.g., `myimage:latest-linux-amd64`) remain in the registry after the merge.
 
 ### Benefits
 
