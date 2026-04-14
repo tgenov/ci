@@ -75,7 +75,12 @@ jobs:
 
 ## Native Multi-Platform Builds (Matrix Strategy)
 
-Instead of using QEMU emulation on a single runner, you can use native runners in a matrix strategy. Each runner builds for its own architecture and pushes a platform-specific image. A final job then merges the per-platform images into a single multi-arch manifest.
+Instead of using QEMU emulation on a single runner, you can use native runners in a matrix strategy. Each runner builds for its own architecture and pushes a platform-specific image. A separate merge action/task then combines the per-platform images into a single multi-arch manifest.
+
+### How it works
+
+1. **Build jobs** run in parallel on native runners. Each job sets `useNativeRunner: true` and a single `platform` value (e.g., `linux/amd64`). The tag suffix is auto-derived from the platform (e.g., `linux/amd64` becomes `linux-amd64`).
+2. **Merge job** runs after all build jobs complete. It uses a dedicated merge action (`devcontainers/ci/merge` for GitHub Actions, `DevcontainersMerge` for Azure DevOps) to combine the per-platform images into a multi-arch manifest.
 
 ### Benefits
 
@@ -92,9 +97,9 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
-            platformTag: linux-amd64
+            platform: linux/amd64
           - runner: ubuntu-24.04-arm
-            platformTag: linux-arm64
+            platform: linux/arm64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -107,26 +112,27 @@ jobs:
       - uses: devcontainers/ci@v0.3
         with:
           imageName: ghcr.io/example/myimage
-          platformTag: ${{ matrix.platformTag }}
+          platform: ${{ matrix.platform }}
+          useNativeRunner: true
           push: always
 
   manifest:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v3
-      - uses: devcontainers/ci@v0.3
+      - uses: devcontainers/ci/merge@v0.3
         with:
           imageName: ghcr.io/example/myimage
-          mergeTag: linux-amd64,linux-arm64
-          push: always
+          platforms: linux/amd64,linux/arm64
 ```
+
+> **Note:** The manifest job does not need `actions/checkout` since no source code is accessed.
 
 ### Azure DevOps Pipelines Example
 
@@ -149,12 +155,12 @@ stages:
       inputs:
         imageName: myregistry.azurecr.io/devcontainer
         platform: linux/amd64
-        platformTag: linux-amd64
+        useNativeRunner: true
         push: always
 
   - job: BuildArm64
     pool:
-      name: 'Self-Hosted-ARM64'  # Use an ARM64 agent for native builds
+      name: 'Self-Hosted-ARM64'
     steps:
     - task: Docker@2
       displayName: Login to Container Registry
@@ -167,7 +173,7 @@ stages:
       inputs:
         imageName: myregistry.azurecr.io/devcontainer
         platform: linux/arm64
-        platformTag: linux-arm64
+        useNativeRunner: true
         push: always
 
 - stage: Manifest
@@ -184,9 +190,8 @@ stages:
         containerRegistry: RegistryNameHere
     - script: docker buildx create --use
       displayName: Set up docker buildx
-    - task: DevcontainersCi@0
+    - task: DevcontainersMerge@0
       inputs:
         imageName: myregistry.azurecr.io/devcontainer
-        mergeTag: linux-amd64,linux-arm64
-        push: always
+        platforms: linux/amd64,linux/arm64
 ```
