@@ -29,6 +29,6 @@ export async function runMain(): Promise<void> {
 			core.setFailed('Failed to create multi-platform manifest');
 		}
 	} catch (error) {
-		core.setFailed(error.message);
+		core.setFailed((error as Error).message);
 	}
 }
