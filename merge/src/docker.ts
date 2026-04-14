@@ -21,7 +21,7 @@ export async function createMultiPlatformImage(
 		);
 		return true;
 	} catch (error) {
-		core.setFailed(error);
+		core.error(String(error));
 		return false;
 	} finally {
 		core.endGroup();

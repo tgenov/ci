@@ -1,4 +1,3 @@
-import * as task from 'azure-pipelines-task-lib/task';
 import * as docker from '../../../common/src/docker';
 import {exec} from './exec';
 
@@ -20,7 +19,7 @@ export async function createMultiPlatformImage(
 		);
 		return true;
 	} catch (error) {
-		task.setResult(task.TaskResult.Failed, `${error}`);
+		console.error(`${error}`);
 		return false;
 	}
 }
