@@ -10,6 +10,7 @@ inputs:
     description: Image name (including registry)
   imageTag:
     required: false
+    default: 'latest'
     description: One or more comma-separated image tags (defaults to latest)
   platforms:
     required: true
