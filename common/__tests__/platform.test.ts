@@ -16,6 +16,10 @@ describe('platformToTagSuffix', () => {
 	test('returns input unchanged when no slashes', () => {
 		expect(platformToTagSuffix('linux-amd64')).toBe('linux-amd64');
 	});
+
+	test('returns empty string for empty input', () => {
+		expect(platformToTagSuffix('')).toBe('');
+	});
 });
 
 describe('buildImageNames', () => {
