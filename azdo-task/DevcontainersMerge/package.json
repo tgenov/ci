@@ -1,0 +1,28 @@
+{
+  "name": "devcontainer-merge-task",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Azure DevOps task for merging multi-platform Dev Container images into a multi-arch manifest",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc --build",
+    "package": "ncc build --source-map --license licenses.txt",
+    "all": "npm run build && npm run package"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devcontainers/ci.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "jsonc-parser": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.0",
+    "@types/q": "^1.5.8",
+    "@vercel/ncc": "^0.38.4",
+    "azure-pipelines-task-lib": "^5.2.1",
+    "typescript": "^5.9.3"
+  }
+}
