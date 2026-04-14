@@ -10,7 +10,10 @@ export async function runMain(): Promise<void> {
 		const imageTagArray = imageTag.split(/\s*,\s*/);
 
 		if (!imageName || !platforms) {
-			task.setResult(task.TaskResult.Failed, 'imageName and platforms are required');
+			task.setResult(
+				task.TaskResult.Failed,
+				'imageName and platforms are required',
+			);
 			return;
 		}
 
@@ -32,7 +35,10 @@ export async function runMain(): Promise<void> {
 		);
 
 		if (!success) {
-			task.setResult(task.TaskResult.Failed, 'Failed to create multi-platform manifest');
+			task.setResult(
+				task.TaskResult.Failed,
+				'Failed to create multi-platform manifest',
+			);
 		}
 	} catch (err) {
 		task.setResult(task.TaskResult.Failed, (err as Error).message);

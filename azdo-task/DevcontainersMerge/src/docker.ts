@@ -12,7 +12,12 @@ export async function createMultiPlatformImage(
 	platformSuffixes: string[],
 ): Promise<boolean> {
 	try {
-		await docker.createMultiPlatformImage(exec, imageName, tag, platformSuffixes);
+		await docker.createMultiPlatformImage(
+			exec,
+			imageName,
+			tag,
+			platformSuffixes,
+		);
 		return true;
 	} catch (error) {
 		task.setResult(task.TaskResult.Failed, `${error}`);
