@@ -77,8 +77,12 @@ export async function runMain(): Promise<void> {
 			}
 		}
 
-		const platformSuffix =
-			useNativeRunner && platform ? platformToTagSuffix(platform) : undefined;
+		let platformSuffix: string | undefined;
+		if (useNativeRunner) {
+			platformSuffix = platformToTagSuffix(platform!);
+			task.setTaskVariable('useNativeRunner', 'true');
+			task.setTaskVariable('platformSuffix', platformSuffix);
+		}
 
 		if (platform && !useNativeRunner) {
 			const skopeoInstalled = await isSkopeoInstalled();
@@ -92,11 +96,6 @@ export async function runMain(): Promise<void> {
 		let buildxOutput: string | undefined;
 		if (platform && !useNativeRunner) {
 			buildxOutput = 'type=oci,dest=/tmp/output.tar';
-		}
-
-		if (useNativeRunner) {
-			task.setTaskVariable('useNativeRunner', 'true');
-			task.setTaskVariable('platformSuffix', platformSuffix!);
 		}
 
 		const log = (message: string): void => console.log(message);
